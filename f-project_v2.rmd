@@ -1,0 +1,185 @@
+---
+title: "Machine learning Course Project"
+author: "Stanislav Dmitriev"
+output: html_document
+---
+
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = TRUE, fig.path='figure/')
+```
+```{r, include=FALSE}
+library(dplyr)
+library(magrittr)
+library(caret)
+library(doParallel)
+library(knitr)
+
+```
+
+## Exploring the data
+Assuming we gave already downloaded the data, let's load it...
+
+```{r}
+train_set <- read.csv("pml-training.csv")
+test_set <- read.csv("pml-testing.csv")
+```
+
+... and study it's structure...
+```{r, results="hide"}
+str(train_set)
+summary(train_set)
+glimpse(train_set)
+```
+
+... and make some plots.
+
+```{r, fig.width=9}
+ggplot(data = train_set, aes(x = classe)) + geom_bar()
+
+ggplot(data = train_set, aes(x = 1:dim(train_set)[1], y = 1, fill=classe)) + geom_bar(stat="identity") +
+  xlab("Observation") + ylab("")+ ggtitle("The disctribution of classes in the data") +
+  scale_y_discrete()
+```
+
+We can notice at least 4 things:
+
+1. NA are represented in three kind of ways ("NA", "#DIV/0!", "").
+2. There are a lot of NAs.
+3. "A"" class is the most common.
+4. Observations are grouped by classes.
+
+Let's reload the data, marking NAs.
+
+```{r}
+train_set <- read.csv("pml-training.csv", na.strings = c("NA", "#DIV/0!", ""))
+test_set <- read.csv("pml-testing.csv", na.strings = c("NA", "#DIV/0!", ""))
+```
+
+And count the percentage of NAs in the columns.
+```{r}
+t <- train_set %>% summarize_each( funs (sum(is.na(.)) / length(.)) ) %>% extract(1,) %>% as.numeric() %>% round(2)
+names(t) <- names(train_set)
+
+table(t)
+```
+
+We can easily remove columns with more then 90% of NAs.
+And columns with information irrelevant for our analysis.
+
+```{r}
+cols_to_delete <- names(t[t > 0.9])
+
+more_cols_to_delete <- names(train_set[1,1:7])
+united_to_delete <- c(cols_to_delete, more_cols_to_delete)
+```
+
+Let's clear our data and create final data frame for analysis.
+```{r}
+clear_train_set <- select(train_set, -one_of(united_to_delete))
+clear_test_set <- select(test_set, -one_of(united_to_delete))
+```
+
+
+## Selecting models for testing
+I will use and compare 5 models mentions in the course:
+
+1. Recursive partitioning (rpart)
+2. Random forests (rf)
+3. Bagged trees (treebag)
+4. Boosted trees (gbm)
+5. Linear discriminant analysis (lda)
+
+## Control and validation
+80% of the data will go to the train set and 20% for the test set.
+I will use 10-fold cross validation for all models.
+
+```{r}
+set.seed(13)
+
+my_split <- createDataPartition(train_set$classe, p = 0.8, list = F)
+
+my_train <- clear_train_set[my_split,]
+my_test <- clear_train_set[-my_split,]
+
+tc <- trainControl(method = "cv", number = 10, verboseIter = T, allowParallel = T)
+```
+
+```{r, eval = FALSE}
+cl <- makeCluster(detectCores() - 1)
+registerDoParallel(cl)
+
+model_rpart <- train(classe ~ ., method = "rpart", trControl = tc, data = my_train) # +
+model_rf <- train(classe ~ ., method = "rf", data = my_train)
+model_treebag <- train(classe ~ ., method = "treebag", trControl = tc, data = my_train) # +
+model_gbm <- train(classe ~ ., method = "gbm", trControl = tc, data = my_train) # +
+model_lda <- train(classe ~ ., method = "lda", trControl = tc, data = my_train) # +
+
+stopCluster(cl)
+```
+
+```{r, include = FALSE}
+load("model_rpart")
+load("model_rf")
+load("model_treebag")
+load("model_gbm")
+load("model_lda")
+
+```
+
+Let's see the accuracy of our models.
+```{r}
+models <- c(
+          model_rpart$method,
+          model_rf$method,
+          model_treebag$method,
+          model_gbm$method,
+          model_lda$method
+          )
+
+accuracy <- c(
+            max(model_rpart$results$Accuracy),
+            max(model_rf$results$Accuracy),
+            max(model_treebag$results$Accuracy),
+            max(model_gbm$results$Accuracy),
+            max(model_lda$results$Accuracy)
+            )
+
+ac <- data.frame(models, accuracy) %>% arrange(desc(accuracy))
+
+ac
+```
+
+It seems that Random forests, Bagged trees and Boosted trees show exellent results on training set.
+Let's test then on the testing set.
+
+```{r}
+pr_model_rf <- predict(model_rf, newdata = my_test)
+pr_model_treebag <- predict(model_treebag, newdata = my_test)
+pr_model_gbm <- predict(model_gbm, newdata = my_test)
+
+cf_rf <- confusionMatrix(pr_model_rf, my_test$classe)
+cf_rf$table
+cf_rf$overall
+
+cf_treebag <- confusionMatrix(pr_model_treebag, my_test$classe)
+cf_treebag$table
+cf_treebag$overall
+
+cf_gbm <- confusionMatrix(pr_model_gbm, my_test$classe)
+cf_treebag$table
+cf_treebag$overall
+
+```
+
+## Final model and estimation of error rate
+
+As Random forests approach has the best accuracy on both training and test sets, i will use it for the final prediction.
+As it's accuracy is 0.9833733, we have OOB estimate of  error rate - 1.07% (1 - accuracy).
+
+
+```{r}
+final_rediction <- predict(model_rf, newdata = clear_test_set)
+num <- 1:20
+data.frame(num, final_rediction)
+```
