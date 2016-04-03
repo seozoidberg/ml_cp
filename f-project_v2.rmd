@@ -119,6 +119,11 @@ stopCluster(cl)
 ```
 
 ```{r, include = FALSE}
+
+# As building models takes some time (especialy for "rf") it's  better to save models after first building and load them after.
+# Just change the "eval" option of this chunk and previos one.
+
+
 load("model_rpart")
 load("model_rf")
 load("model_treebag")
