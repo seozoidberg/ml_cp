@@ -172,8 +172,8 @@ cf_treebag$table
 cf_treebag$overall
 
 cf_gbm <- confusionMatrix(pr_model_gbm, my_test$classe)
-cf_treebag$table
-cf_treebag$overall
+cf_gbm$table
+cf_gbm$overall
 
 ```
 

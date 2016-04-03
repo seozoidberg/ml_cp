@@ -148,7 +148,7 @@ table(t)</code></pre>
 <pre><code>## t
 ##    0 0.98    1 
 ##   60   94    6</code></pre>
-<p>We can easily renome columns with more then 90% NAs. And columns with information irrelivant for our analysis.</p>
+<p>We can easily remove columns with more then 90% of NAs. And columns with information irrelevant for our analysis.</p>
 <pre class="r"><code>cols_to_delete &lt;- names(t[t &gt; 0.9])
 
 more_cols_to_delete &lt;- names(train_set[1,1:7])
@@ -215,7 +215,7 @@ ac</code></pre>
 ## 3     gbm 0.9568888
 ## 4     lda 0.7057675
 ## 5   rpart 0.5081557</code></pre>
-<p>It seems that Random forests, Bagged trees and Boosted trees show exellent results on training sets. Let’s test then on the training set.</p>
+<p>It seems that Random forests, Bagged trees and Boosted trees show exellent results on training set. Let’s test then on the testing set.</p>
 <pre class="r"><code>pr_model_rf &lt;- predict(model_rf, newdata = my_test)
 pr_model_treebag &lt;- predict(model_treebag, newdata = my_test)
 pr_model_gbm &lt;- predict(model_gbm, newdata = my_test)
@@ -249,23 +249,23 @@ cf_treebag$table</code></pre>
 ## AccuracyPValue  McnemarPValue 
 ##      0.0000000            NaN</code></pre>
 <pre class="r"><code>cf_gbm &lt;- confusionMatrix(pr_model_gbm, my_test$classe)
-cf_treebag$table</code></pre>
+cf_gbm$table</code></pre>
 <pre><code>##           Reference
 ## Prediction    A    B    C    D    E
-##          A 1114    5    0    0    0
-##          B    0  749    5    0    2
-##          C    2    4  673   11    3
-##          D    0    1    4  631    1
-##          E    0    0    2    1  715</code></pre>
-<pre class="r"><code>cf_treebag$overall</code></pre>
+##          A 1101   18    0    0    0
+##          B   11  723   18    2    9
+##          C    3   17  656   17    5
+##          D    1    1   10  620    6
+##          E    0    0    0    4  701</code></pre>
+<pre class="r"><code>cf_gbm$overall</code></pre>
 <pre><code>##       Accuracy          Kappa  AccuracyLower  AccuracyUpper   AccuracyNull 
-##      0.9895488      0.9867793      0.9858482      0.9924899      0.2844762 
+##      0.9689014      0.9606605      0.9629808      0.9741090      0.2844762 
 ## AccuracyPValue  McnemarPValue 
 ##      0.0000000            NaN</code></pre>
 </div>
 <div id="final-model-and-estimation-of-error-rate" class="section level2">
 <h2>Final model and estimation of error rate</h2>
-<p>As Random forests aproach has the best accuracy on both training and test sets, i will use it for the final prediction. As it’s accuracy is 0.9833733, we have OOB estimate of error rate - 1.07% (1 - accuracy).</p>
+<p>As Random forests approach has the best accuracy on both training and test sets, i will use it for the final prediction. As it’s accuracy is 0.9833733, we have OOB estimate of error rate - 1.07% (1 - accuracy).</p>
 <pre class="r"><code>final_rediction &lt;- predict(model_rf, newdata = clear_test_set)
 num &lt;- 1:20
 data.frame(num, final_rediction)</code></pre>
